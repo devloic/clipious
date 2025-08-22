@@ -46,7 +46,7 @@ class AppCubit extends Cubit<AppState> {
 
   onReady() async {
     // Only initialize sharing intent on mobile platforms where it's supported
-    if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+    if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS)) {
       try {
         intentDataStreamSubscription =
             ReceiveSharingIntent.instance.getMediaStream().listen((shared) {
@@ -67,7 +67,7 @@ class AppCubit extends Cubit<AppState> {
     }
 
     // For sharing or opening urls/text coming from outside the app while the app is closed
-    if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+    if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS)) {
       try {
         ReceiveSharingIntent.instance.getInitialMedia().then((shared) {
           final String? value = shared

@@ -79,7 +79,9 @@ class SembastSqfDb extends IDbClient {
     } else {
       // Initialize database factory for desktop platforms
       late final sqflite.DatabaseFactory factory;
-      if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+      if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.windows || 
+                       defaultTargetPlatform == TargetPlatform.linux || 
+                       defaultTargetPlatform == TargetPlatform.macOS)) {
         // Initialize FFI for desktop platforms
         ffi.sqfliteFfiInit();
         factory = ffi.databaseFactoryFfi;

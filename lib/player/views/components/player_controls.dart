@@ -1,6 +1,6 @@
-import 'dart:io';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:clipious/globals.dart';
 import 'package:clipious/main.dart';
 import 'package:clipious/player/states/interfaces/media_player.dart';
@@ -477,7 +477,7 @@ class PlayerControls extends StatelessWidget {
                                                   ),
                                                 )),
                                               // Show PiP button only on Android where it's supported
-                                              if (Platform.isAndroid)
+                                              if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android)
                                                 IconButton(
                                                     onPressed: () =>
                                                         player.enterPip(),

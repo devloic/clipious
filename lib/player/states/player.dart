@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'dart:collection';
-import 'dart:io';
+import 'dart:io' if (dart.library.html) 'dart:html';
 
 import 'package:audio_service/audio_service.dart';
+import 'package:flutter/foundation.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:back_button_interceptor/back_button_interceptor.dart';
 import 'package:bloc/bloc.dart';
@@ -902,8 +903,8 @@ class PlayerCubit extends Cubit<PlayerState> with WidgetsBindingObserver {
 
   void enterPip() async {
     // PiP is only supported on Android for now
-    if (!Platform.isAndroid) {
-      log.info('Picture-in-Picture not supported on ${Platform.operatingSystem}');
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      log.info('Picture-in-Picture not supported on ${defaultTargetPlatform.name}');
       return;
     }
 

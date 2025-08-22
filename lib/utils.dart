@@ -218,7 +218,7 @@ Future<bool> isDeviceTv() async {
   }
   
   // Only check Android TV features on Android platform
-  if (!kIsWeb && Platform.isAndroid) {
+  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
     try {
       DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
       AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;

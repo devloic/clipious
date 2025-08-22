@@ -94,6 +94,8 @@ dependency_overrides:
   # Fix dio web adapter compatibility issue
   dio_web_adapter: ^2.1.1
   dio: ^5.7.0
+  # Fix freezed_annotation version conflict with invidious package
+  freezed_annotation: ^2.4.4
 flutter:
   assets: 
     - assets/icon.svg

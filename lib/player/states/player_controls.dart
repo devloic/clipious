@@ -195,11 +195,21 @@ class PlayerControlsCubit extends Cubit<PlayerControlsState> {
   }
 
   Future<void> startBrightnessAdjustments(DragStartDetails details) async {
-    final currentBrightness = await ScreenBrightness().current;
-    emit(state.copyWith(
-        systemBrightness: currentBrightness,
-        screenControlStartValue: currentBrightness,
-        screenControlStart: details.localPosition.dy));
+    try {
+      final currentBrightness = await ScreenBrightness().current;
+      emit(state.copyWith(
+          systemBrightness: currentBrightness,
+          screenControlStartValue: currentBrightness,
+          screenControlStart: details.localPosition.dy));
+    } catch (e) {
+      // Screen brightness control not available on this platform
+      log.warning('Screen brightness control not available: $e');
+      // Use default brightness value as fallback
+      emit(state.copyWith(
+          systemBrightness: 0.5,
+          screenControlStartValue: 0.5,
+          screenControlStart: details.localPosition.dy));
+    }
   }
 
   Future<void> updateBrightness(
@@ -212,9 +222,17 @@ class PlayerControlsCubit extends Cubit<PlayerControlsState> {
       double screenBrightness =
           min(1, max(0, state.screenControlStartValue + movedBy));
 
-      await ScreenBrightness().setScreenBrightness(screenBrightness);
-      emit(state.copyWith(
-          systemBrightness: screenBrightness, showBrightnessSlider: true));
+      try {
+        await ScreenBrightness().setScreenBrightness(screenBrightness);
+        emit(state.copyWith(
+            systemBrightness: screenBrightness, showBrightnessSlider: true));
+      } catch (e) {
+        // Screen brightness control not available on this platform
+        log.warning('Failed to set screen brightness: $e');
+        // Still update UI state even if we can't control actual brightness
+        emit(state.copyWith(
+            systemBrightness: screenBrightness, showBrightnessSlider: true));
+      }
     }
   }
 

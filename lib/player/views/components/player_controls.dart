@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math';
 
 import 'package:clipious/globals.dart';
@@ -471,11 +472,13 @@ class PlayerControls extends StatelessWidget {
                                                                     0.8)),
                                                   ),
                                                 )),
-                                              IconButton(
-                                                  onPressed: () =>
-                                                      player.enterPip(),
-                                                  icon: const Icon(Icons
-                                                      .picture_in_picture)),
+                                              // Show PiP button only on Android where it's supported
+                                              if (Platform.isAndroid)
+                                                IconButton(
+                                                    onPressed: () =>
+                                                        player.enterPip(),
+                                                    icon: const Icon(Icons
+                                                        .picture_in_picture)),
                                               IconButton(
                                                   onPressed: () =>
                                                       showOptionMenu(

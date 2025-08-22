@@ -6,6 +6,7 @@ import 'package:clipious/globals.dart';
 import 'package:clipious/player/states/interfaces/media_player.dart';
 import 'package:clipious/videos/models/video.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'package:logging/logging.dart';
 
 import '../../settings/states/settings.dart';
@@ -42,6 +43,8 @@ class AudioPlayerCubit extends MediaPlayerCubit<AudioPlayerState> {
 
   initPlayer() {
     if (audioPlayer == null) {
+      // Initialize MediaKit backend for just_audio on desktop platforms
+      JustAudioMediaKit.ensureInitialized();
       audioPlayer = AudioPlayer();
       audioPlayer?.playerStateStream.listen(onStateStreamChange,
           onError: (e, st) {

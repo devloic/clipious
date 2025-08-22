@@ -25,27 +25,36 @@ class TabletExpandedPlayer extends StatelessWidget {
     return !isFullScreen &&
             !controller.isMini &&
             (video != null || offlineVid != null)
-        ? Column(children: [
-            MiniPlayerControls(
-              videoId: video?.videoId ?? offlineVid?.videoId ?? '',
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: innerHorizontalPadding),
-                child: Builder(builder: (context) {
-                  return video != null
-                      ? SingleChildScrollView(
-                          child: VideoInfo(
-                            video: video,
-                            descriptionAndTags: false,
-                          ),
-                        )
-                      : const SizedBox.shrink();
-                }),
-              ),
-            )
-          ])
+        ? LayoutBuilder(
+            builder: (context, constraints) {
+              // If height is too constrained (during drag animation), show minimal or no content
+              if (constraints.maxHeight < 100) {
+                return const SizedBox.shrink();
+              }
+              
+              return Column(children: [
+                MiniPlayerControls(
+                  videoId: video?.videoId ?? offlineVid?.videoId ?? '',
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: innerHorizontalPadding),
+                    child: Builder(builder: (context) {
+                      return video != null
+                          ? SingleChildScrollView(
+                              child: VideoInfo(
+                                video: video,
+                                descriptionAndTags: false,
+                              ),
+                            )
+                          : const SizedBox.shrink();
+                    }),
+                  ),
+                )
+              ]);
+            },
+          )
         : const SizedBox.shrink();
   }
 }

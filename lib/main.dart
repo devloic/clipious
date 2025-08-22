@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:feedback/feedback.dart';
@@ -24,6 +25,7 @@ import 'package:clipious/utils/sembast_sqflite_database.dart';
 import 'package:clipious/workmanager.dart';
 import 'package:logging/logging.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:river_player/river_player.dart';
 
 import 'settings/models/db/app_logs.dart';
 
@@ -44,18 +46,48 @@ Future<void> main() async {
         '[${record.level.name}] [${record.loggerName}] ${record.message}');
     // we don't want debug
     if (record.level == Level.INFO || record.level == Level.SEVERE) {
-      await db.insertLogs(AppLog(
-          logger: record.loggerName,
-          level: record.level.name,
-          time: record.time,
-          message: record.message,
-          stacktrace: record.stackTrace?.toString()));
+      // Only try to insert logs if db is initialized
+      try {
+        await db.insertLogs(AppLog(
+            logger: record.loggerName,
+            level: record.level.name,
+            time: record.time,
+            message: record.message,
+            stacktrace: record.stackTrace?.toString()));
+      } catch (e) {
+        // If db is not initialized yet, just print to debug console
+        debugPrint('DB not ready for logging: ${record.message}');
+      }
     }
   });
+
+  // Handle Flutter framework errors, particularly keyboard event assertions
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    
+    // Log keyboard assertion errors but don't crash the app
+    if (details.exception.toString().contains('KeyDownEvent is dispatched') ||
+        details.exception.toString().contains('KeyUpEvent is dispatched') ||
+        details.exception.toString().contains('physical key is already pressed') ||
+        details.exception.toString().contains('physical key is not pressed')) {
+      log.warning('Flutter keyboard assertion caught and handled: ${details.exception}');
+    } else {
+      log.severe('Flutter error: ${details.exception}', details.exception, details.stack);
+    }
+  };
+
+  // Handle errors outside of Flutter framework
+  PlatformDispatcher.instance.onError = (error, stack) {
+    log.severe('Platform error: $error', error, stack);
+    return true;
+  };
 
   HttpOverrides.global = MyHttpOverrides();
 
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize River Player for multiplatform support
+  RiverPlayerPlatform.ensureInitialized();
 
   packageInfo = await PackageInfo.fromPlatform();
 

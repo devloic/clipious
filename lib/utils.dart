@@ -1,4 +1,7 @@
+import 'dart:io';
 import 'dart:math';
+
+import 'package:flutter/foundation.dart';
 
 import 'package:clipious/settings/models/db/settings.dart';
 import 'package:device_info_plus/device_info_plus.dart';
@@ -205,10 +208,26 @@ DeviceType getDeviceType() {
 
 Future<bool> isDeviceTv() async {
   final forceTv = db.getSettings(forceTvUiSettingName);
-  DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
-  AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
-  return forceTv?.value == 'true' ||
-      androidInfo.systemFeatures.contains('android.software.leanback');
+  
+  // Return true if forced in settings
+  if (forceTv?.value == 'true') {
+    return true;
+  }
+  
+  // Only check Android TV features on Android platform
+  if (!kIsWeb && Platform.isAndroid) {
+    try {
+      DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
+      AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
+      return androidInfo.systemFeatures.contains('android.software.leanback');
+    } catch (e) {
+      // If we can't get device info, assume not TV
+      return false;
+    }
+  }
+  
+  // For other platforms, not TV by default
+  return false;
 }
 
 int getGridCount(BuildContext context) {

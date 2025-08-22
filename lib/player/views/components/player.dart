@@ -1,3 +1,5 @@
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:clipious/l10n/generated/app_localizations.dart';
@@ -78,20 +80,14 @@ class Player extends StatelessWidget {
                     child: state.isAudio
                         ? AudioPlayer(
                             key: const ValueKey('audio-player'),
-                            video:
-                                state.isAudio ? state.currentlyPlaying : null,
-                            offlineVideo: state.isAudio
-                                ? state.offlineCurrentlyPlaying
-                                : null,
+                            video: state.currentlyPlaying,
+                            offlineVideo: state.offlineCurrentlyPlaying,
                             miniPlayer: false,
                           )
                         : VideoPlayer(
                             key: const ValueKey('player'),
-                            video:
-                                !state.isAudio ? state.currentlyPlaying : null,
-                            offlineVideo: !state.isAudio
-                                ? state.offlineCurrentlyPlaying
-                                : null,
+                            video: state.currentlyPlaying,
+                            offlineVideo: state.offlineCurrentlyPlaying,
                             miniPlayer: false,
                             startAt: state.startAt,
                           ),
@@ -205,45 +201,59 @@ class Player extends StatelessWidget {
                                                         DeviceType.tablet
                                                     ? 2
                                                     : 1,
-                                                child: Column(
-                                                  mainAxisSize: isMini
-                                                      ? MainAxisSize.min
-                                                      : MainAxisSize.max,
-                                                  mainAxisAlignment:
-                                                      isFullScreen
-                                                          ? MainAxisAlignment
-                                                              .center
-                                                          : MainAxisAlignment
-                                                              .start,
-                                                  crossAxisAlignment: isMini
-                                                      ? CrossAxisAlignment.start
-                                                      : CrossAxisAlignment
-                                                          .center,
-                                                  children: [
-                                                    Container(
+                                                child: LayoutBuilder(
+                                                  builder: (context, constraints) {
+                                                    // If height is too constrained (during drag animation), show minimal content
+                                                    if (constraints.maxHeight < 100) {
+                                                      return Container(
                                                         constraints: BoxConstraints(
-                                                            maxHeight: isMini
-                                                                ? targetHeight
-                                                                : MediaQuery.sizeOf(
-                                                                        context)
-                                                                    .height),
-                                                        child: videoPlayer),
-                                                    if (!isFullScreen)
-                                                      ConditionalWrap(
-                                                          wrapIf: !isMini,
-                                                          wrapper: (child) =>
-                                                              Expanded(
-                                                                  child: child),
-                                                          child: DeviceWidget(
-                                                              orientation:
-                                                                  orientation,
-                                                              portraitTabletAsPhone:
-                                                                  true,
-                                                              tablet:
-                                                                  const TabletExpandedPlayer(),
-                                                              phone:
-                                                                  const ExpandedPlayer()))
-                                                  ],
+                                                          maxHeight: constraints.maxHeight,
+                                                        ),
+                                                        child: videoPlayer,
+                                                      );
+                                                    }
+                                                    
+                                                    return Column(
+                                                      mainAxisSize: isMini
+                                                          ? MainAxisSize.min
+                                                          : MainAxisSize.max,
+                                                      mainAxisAlignment:
+                                                          isFullScreen
+                                                              ? MainAxisAlignment
+                                                                  .center
+                                                              : MainAxisAlignment
+                                                                  .start,
+                                                      crossAxisAlignment: isMini
+                                                          ? CrossAxisAlignment.start
+                                                          : CrossAxisAlignment
+                                                              .center,
+                                                      children: [
+                                                        Container(
+                                                            constraints: BoxConstraints(
+                                                                maxHeight: isMini
+                                                                    ? targetHeight
+                                                                    : MediaQuery.sizeOf(
+                                                                            context)
+                                                                        .height),
+                                                            child: videoPlayer),
+                                                        if (!isFullScreen)
+                                                          ConditionalWrap(
+                                                              wrapIf: !isMini,
+                                                              wrapper: (child) =>
+                                                                  Expanded(
+                                                                      child: child),
+                                                              child: DeviceWidget(
+                                                                  orientation:
+                                                                      orientation,
+                                                                  portraitTabletAsPhone:
+                                                                      true,
+                                                                  tablet:
+                                                                      const TabletExpandedPlayer(),
+                                                                  phone:
+                                                                      const ExpandedPlayer()))
+                                                      ],
+                                                    );
+                                                  },
                                                 )),
                                             if (!isFullScreen && !isMini)
                                               DeviceWidget(

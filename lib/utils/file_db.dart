@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+
 import 'package:clipious/downloads/models/downloaded_video.dart';
 import 'package:clipious/extensions.dart';
 import 'package:clipious/globals.dart';
@@ -187,10 +189,17 @@ class FileDB extends IDbClient {
   }
 
   Future<File> _openAppFile(String path) async {
+    if (kIsWeb) {
+      // On web, we can't use file system, so return a temporary file
+      // This will allow the code to run but the file operations won't persist
+      return File(path);
+    }
+    
     late Directory docsDir;
     try {
       docsDir = await getApplicationDocumentsDirectory();
     } catch (e) {
+      // Fallback for other platforms that don't support getApplicationDocumentsDirectory
       docsDir = Directory.current;
     }
 
@@ -206,12 +215,25 @@ class FileDB extends IDbClient {
   }
 
   Future<void> _writeMapToFile(File f, Map<String, dynamic> map) async {
+    if (kIsWeb) {
+      // On web, we can't write to files, so just log the operation
+      var string = jsonEncode(map);
+      _log.fine("Web: Would write json to ${f.path}: $string");
+      return;
+    }
+    
     var string = jsonEncode(map);
     _log.fine("Writing json to ${f.path}: $string");
     await f.writeAsString(string, mode: FileMode.write);
   }
 
   Future<Map<String, dynamic>> _readFileAsMap(File f) async {
+    if (kIsWeb) {
+      // On web, we can't read from files, so return empty map
+      _log.fine("Web: Would read json from ${f.path}, returning empty map");
+      return {};
+    }
+    
     try {
       final contents = await f.readAsString();
 

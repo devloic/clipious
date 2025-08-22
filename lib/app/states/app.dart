@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:bloc/bloc.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:flutter/foundation.dart';
 import 'package:clipious/router.dart';
 import 'package:logging/logging.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
@@ -16,7 +18,7 @@ part 'app.freezed.dart';
 final log = Logger('HomeState');
 
 class AppCubit extends Cubit<AppState> {
-  late final StreamSubscription intentDataStreamSubscription;
+  StreamSubscription? intentDataStreamSubscription;
 
   AppCubit(super.initialState) {
     onReady();
@@ -43,37 +45,51 @@ class AppCubit extends Cubit<AppState> {
   }
 
   onReady() async {
-    intentDataStreamSubscription =
-        ReceiveSharingIntent.instance.getMediaStream().listen((shared) {
-      final String? value = shared
-          .where((element) => element.type == SharedMediaType.url)
-          .map((e) => e.path)
-          .firstOrNull;
-      if (value != null) {
-        openAppLink(value, false);
+    // Only initialize sharing intent on mobile platforms where it's supported
+    if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+      try {
+        intentDataStreamSubscription =
+            ReceiveSharingIntent.instance.getMediaStream().listen((shared) {
+          final String? value = shared
+              .where((element) => element.type == SharedMediaType.url)
+              .map((e) => e.path)
+              .firstOrNull;
+          if (value != null) {
+            openAppLink(value, false);
+          }
+        });
+      } catch (e) {
+        // If sharing intent fails, just log it and continue
+        log.warning('Failed to initialize sharing intent: $e');
       }
-    }, onError: (err) {
-      log.warning("getLinkStream error: $err");
-    });
+    } else {
+      log.info('Sharing intent not supported on this platform');
+    }
 
     // For sharing or opening urls/text coming from outside the app while the app is closed
-    ReceiveSharingIntent.instance.getInitialMedia().then((shared) {
-      final String? value = shared
-          .where((element) => element.type == SharedMediaType.url)
-          .map((e) => e.path)
-          .firstOrNull;
-      if (value != null) {
-        openAppLink(value, true);
+    if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+      try {
+        ReceiveSharingIntent.instance.getInitialMedia().then((shared) {
+          final String? value = shared
+              .where((element) => element.type == SharedMediaType.url)
+              .map((e) => e.path)
+              .firstOrNull;
+          if (value != null) {
+            openAppLink(value, true);
+          }
+          ReceiveSharingIntent.instance.reset();
+        });
+      } catch (e) {
+        log.warning('Failed to get initial sharing intent: $e');
       }
-      ReceiveSharingIntent.instance.reset();
-    });
+    }
 
     service.syncHistory();
   }
 
   @override
   close() async {
-    intentDataStreamSubscription.cancel();
+    intentDataStreamSubscription?.cancel();
     super.close();
   }
 

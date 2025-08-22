@@ -35,69 +35,78 @@ class ExpandedPlayer extends StatelessWidget {
     return !isFullScreen &&
             !controller.isMini &&
             (video != null || offlineVid != null)
-        ? Column(children: [
-            MiniPlayerControls(
-              videoId: video?.videoId ?? offlineVid?.videoId ?? '',
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: innerHorizontalPadding),
-                child: Builder(builder: (context) {
-                  var selectedIndex = context.select((PlayerCubit value) =>
-                      value.state.selectedFullScreenIndex);
-                  return video != null
-                      ? <Widget>[
-                          SingleChildScrollView(
-                            child: VideoInfo(
-                              video: video,
-                            ),
-                          ),
-                          if (!distractionFree)
-                            SingleChildScrollView(
-                              child: CommentsContainer(
-                                video: video,
-                                key: ValueKey('comms-${video.videoId}'),
-                              ),
-                            ),
-                          if (!distractionFree)
-                            SingleChildScrollView(
-                                child: RecommendedVideos(video: video)),
-                          const VideoQueue(),
-                        ][selectedIndex]
-                      : const VideoQueue();
-                }),
-              ),
-            ),
-            Builder(builder: (context) {
-              var selectedIndex = context.select(
-                  (PlayerCubit value) => value.state.selectedFullScreenIndex);
-              return ClipRect(
-                child: Align(
-                  alignment: Alignment.bottomCenter,
-                  heightFactor: 0.65,
-                  child: NavigationBar(
-                      selectedIndex: selectedIndex,
-                      onDestinationSelected: player.selectTab,
-                      destinations: [
-                        NavigationDestination(
-                            icon: const Icon(Icons.info), label: locals.info),
-                        if (!distractionFree)
-                          NavigationDestination(
-                              icon: const Icon(Icons.chat_bubble),
-                              label: locals.comments),
-                        if (!distractionFree)
-                          NavigationDestination(
-                              icon: const Icon(Icons.schema),
-                              label: locals.recommended),
-                        NavigationDestination(
-                            icon: const Icon(Icons.playlist_play),
-                            label: locals.videoQueue)
-                      ]),
+        ? LayoutBuilder(
+            builder: (context, constraints) {
+              // If height is too constrained (during drag animation), show minimal or no content
+              if (constraints.maxHeight < 100) {
+                return const SizedBox.shrink();
+              }
+              
+              return Column(children: [
+                MiniPlayerControls(
+                  videoId: video?.videoId ?? offlineVid?.videoId ?? '',
                 ),
-              );
-            })
-          ])
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: innerHorizontalPadding),
+                    child: Builder(builder: (context) {
+                      var selectedIndex = context.select((PlayerCubit value) =>
+                          value.state.selectedFullScreenIndex);
+                      return video != null
+                          ? <Widget>[
+                              SingleChildScrollView(
+                                child: VideoInfo(
+                                  video: video,
+                                ),
+                              ),
+                              if (!distractionFree)
+                                SingleChildScrollView(
+                                  child: CommentsContainer(
+                                    video: video,
+                                    key: ValueKey('comms-${video.videoId}'),
+                                  ),
+                                ),
+                              if (!distractionFree)
+                                SingleChildScrollView(
+                                    child: RecommendedVideos(video: video)),
+                              const VideoQueue(),
+                            ][selectedIndex]
+                          : const VideoQueue();
+                    }),
+                  ),
+                ),
+                Builder(builder: (context) {
+                  var selectedIndex = context.select(
+                      (PlayerCubit value) => value.state.selectedFullScreenIndex);
+                  return ClipRect(
+                    child: Align(
+                      alignment: Alignment.bottomCenter,
+                      heightFactor: 0.65,
+                      child: NavigationBar(
+                          selectedIndex: selectedIndex,
+                          onDestinationSelected: player.selectTab,
+                          destinations: [
+                            NavigationDestination(
+                                icon: const Icon(Icons.info), label: locals.info),
+                            if (!distractionFree)
+                              NavigationDestination(
+                                  icon: const Icon(Icons.chat_bubble),
+                                  label: locals.comments),
+                            if (!distractionFree)
+                              NavigationDestination(
+                                  icon: const Icon(Icons.schema),
+                                  label: locals.recommended),
+                            NavigationDestination(
+                                icon: const Icon(Icons.playlist_play),
+                                label: locals.videoQueue)
+                          ]),
+                    ),
+                  );
+                })
+              ]);
+            },
+          )
         : const SizedBox.shrink();
   }
 }

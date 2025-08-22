@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+
 import 'package:clipious/downloads/models/downloaded_video.dart';
 import 'package:clipious/home/models/db/home_layout.dart';
 import 'package:clipious/offline_subscriptions/models/offline_subscription.dart';
@@ -20,6 +22,7 @@ import 'package:sembast/sembast.dart';
 import 'package:sembast/sembast_memory.dart';
 import 'package:sembast_sqflite/sembast_sqflite.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
+import 'package:sqflite_common_ffi/sqflite_ffi.dart' as ffi;
 import 'package:uuid/uuid.dart';
 
 import '../settings/states/settings.dart';
@@ -52,21 +55,45 @@ class SembastSqfDb extends IDbClient {
   SembastSqfDb(this.db);
 
   static Future<SembastSqfDb> create() async {
-    late final Directory docsDir;
+    String dbPath;
     try {
-      docsDir = await getApplicationDocumentsDirectory();
+      final docsDir = await getApplicationDocumentsDirectory();
+      dbPath = p.join(docsDir.path, "clipious.db");
     } catch (e) {
-      docsDir = Directory.current;
+      // On web platform, use a simple database name as we can't access file system
+      if (kIsWeb) {
+        dbPath = "clipious.db";
+      } else {
+        // Fallback for other platforms that don't support getApplicationDocumentsDirectory
+        final currentDir = Directory.current;
+        dbPath = p.join(currentDir.path, "clipious.db");
+      }
     }
 
-    var dbPath = p.join(docsDir.path, "clipious.db");
+    late final Database db;
+    
+    if (kIsWeb) {
+      // On web, use in-memory database since SQLite isn't supported
+      var factory = newDatabaseFactoryMemory();
+      db = await factory.openDatabase(dbPath);
+    } else {
+      // Initialize database factory for desktop platforms
+      late final sqflite.DatabaseFactory factory;
+      if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+        // Initialize FFI for desktop platforms
+        ffi.sqfliteFfiInit();
+        factory = ffi.databaseFactoryFfi;
+      } else {
+        // Use default factory for mobile platforms
+        factory = sqflite.databaseFactory;
+      }
 
-    final databaseFactorySqflite =
-        getDatabaseFactorySqflite(sqflite.databaseFactory);
-    var db = await databaseFactorySqflite.openDatabase(
-      dbPath.toString(),
-      version: 1,
-    );
+      final databaseFactorySqflite = getDatabaseFactorySqflite(factory);
+      db = await databaseFactorySqflite.openDatabase(
+        dbPath.toString(),
+        version: 1,
+      );
+    }
 
     return SembastSqfDb(db);
   }

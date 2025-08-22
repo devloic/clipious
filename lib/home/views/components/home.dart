@@ -47,7 +47,18 @@ class HomeView extends StatelessWidget {
                           ?.copyWith(color: colors.secondary),
                     ),
                   ),
-                  e.build(context, true)
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      // Ensure minimum width for content
+                      if (constraints.maxWidth < 100) {
+                        return const SizedBox(
+                          width: 100,
+                          child: Text('Content too narrow to display'),
+                        );
+                      }
+                      return e.build(context, true);
+                    },
+                  )
                 ],
               ),
             ))
@@ -88,47 +99,52 @@ class HomeView extends StatelessWidget {
                       child: AppIcon(
                         height: 200,
                       ))
-                  : Column(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        AnimatedCrossFade(
-                          crossFadeState: scrolled
-                              ? CrossFadeState.showSecond
-                              : CrossFadeState.showFirst,
-                          firstCurve: Curves.easeInOutQuad,
-                          secondCurve: Curves.easeInOutQuad,
-                          sizeCurve: Curves.easeInOutQuad,
-                          duration: animationDuration,
-                          firstChild: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children:
-                                  getSmallSources(context, layout, isLoggedIn)),
-                          secondChild: const Row(
-                            children: [
-                              SizedBox.shrink(),
-                            ],
+                  : SingleChildScrollView(
+                      physics: const ClampingScrollPhysics(),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          AnimatedCrossFade(
+                            crossFadeState: scrolled
+                                ? CrossFadeState.showSecond
+                                : CrossFadeState.showFirst,
+                            firstCurve: Curves.easeInOutQuad,
+                            secondCurve: Curves.easeInOutQuad,
+                            sizeCurve: Curves.easeInOutQuad,
+                            duration: animationDuration,
+                            firstChild: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children:
+                                    getSmallSources(context, layout, isLoggedIn)),
+                            secondChild: const Row(
+                              children: [
+                                SizedBox.shrink(),
+                              ],
+                            ),
                           ),
-                        ),
-                        if (layout.showBigSource)
-                          Row(
-                            children: [
-                              Text(
-                                layout.bigSource.getLabel(locals),
-                                style: textTheme.titleMedium
-                                    ?.copyWith(color: colors.secondary),
-                              ),
-                            ],
-                          ),
-                        if (layout.showBigSource)
-                          Expanded(
-                              key: ValueKey(layout.bigSource),
-                              child: Padding(
-                                padding: const EdgeInsets.only(
-                                    right: innerHorizontalPadding),
-                                child: layout.bigSource.build(context, false),
-                              ))
-                      ],
+                          if (layout.showBigSource)
+                            Row(
+                              children: [
+                                Text(
+                                  layout.bigSource.getLabel(locals),
+                                  style: textTheme.titleMedium
+                                      ?.copyWith(color: colors.secondary),
+                                ),
+                              ],
+                            ),
+                          if (layout.showBigSource)
+                            SizedBox(
+                                height: 400, // Fixed height instead of Expanded
+                                child: Padding(
+                                  key: ValueKey(layout.bigSource),
+                                  padding: const EdgeInsets.only(
+                                      right: innerHorizontalPadding),
+                                  child: layout.bigSource.build(context, false),
+                                ))
+                        ],
+                      ),
                     )),
         );
       }),

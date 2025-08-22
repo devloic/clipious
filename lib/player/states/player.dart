@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:collection';
+import 'dart:io';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
@@ -899,17 +900,31 @@ class PlayerCubit extends Cubit<PlayerState> with WidgetsBindingObserver {
     }
   }
 
-  void enterPip() {
-    setFullScreen(FullScreenState.fullScreen);
-    setEvent(const MediaEvent(
-        state: MediaState.playing, type: MediaEventType.enteredPip));
-    SimplePip(
-      onPipExited: () {
-        setEvent(const MediaEvent(
-            state: MediaState.playing, type: MediaEventType.exitedPip));
-        setFullScreen(FullScreenState.notFullScreen);
-      },
-    ).enterPipMode();
+  void enterPip() async {
+    // PiP is only supported on Android for now
+    if (!Platform.isAndroid) {
+      log.info('Picture-in-Picture not supported on ${Platform.operatingSystem}');
+      return;
+    }
+
+    try {
+      log.info('Attempting to enter Picture-in-Picture mode on Android');
+      
+      setFullScreen(FullScreenState.fullScreen);
+      setEvent(const MediaEvent(
+          state: MediaState.playing, type: MediaEventType.enteredPip));
+      
+      // Use simple_pip_mode for Android
+      await SimplePip().enterPipMode();
+      
+      log.info('Successfully entered Picture-in-Picture mode');
+    } catch (e) {
+      log.severe('Failed to enter Picture-in-Picture mode: $e');
+      // Reset state if PiP fails
+      setFullScreen(FullScreenState.notFullScreen);
+      setEvent(const MediaEvent(
+          state: MediaState.playing, type: MediaEventType.exitedPip));
+    }
   }
 
   void setMuted(bool muted) {

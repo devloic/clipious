@@ -6,6 +6,7 @@ import com.ryanheise.audioservice.AudioServiceActivity;
 import androidx.annotation.NonNull;
 import io.flutter.embedding.engine.FlutterEngine
 import android.content.res.Configuration
+
 class MainActivity : AudioServiceActivity() {
     private var callbackHelper = PipCallbackHelper()
 

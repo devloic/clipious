@@ -117,7 +117,7 @@ void showSharingSheet(BuildContext context, ShareLinks links,
     return null;
   }
 
-  showModalBottomSheet<void>(
+  showSafeModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
     builder: (BuildContext context) {
@@ -141,9 +141,10 @@ void showSharingSheet(BuildContext context, ShareLinks links,
                   onPressed: () async {
                     final timestamp = await getTimestamp();
 
-                    Share.share(links.getInvidiousLink(
-                        await db.getCurrentlySelectedServer(),
-                        timestamp?.inSeconds));
+                    SharePlus.instance.share(ShareParams(
+                        uri: links.getInvidiousLink(
+                            await db.getCurrentlySelectedServer(),
+                            timestamp?.inSeconds)));
                     if (context.mounted) {
                       Navigator.of(context).pop();
                     }
@@ -154,7 +155,8 @@ void showSharingSheet(BuildContext context, ShareLinks links,
                   onPressed: () async {
                     final timestamp = await getTimestamp();
 
-                    Share.share(links.getRedirectLink(timestamp?.inSeconds));
+                    SharePlus.instance.share(ShareParams(
+                        uri: links.getRedirectLink(timestamp?.inSeconds)));
                     if (context.mounted) {
                       Navigator.of(context).pop();
                     }
@@ -165,7 +167,8 @@ void showSharingSheet(BuildContext context, ShareLinks links,
                   onPressed: () async {
                     final timestamp = await getTimestamp();
 
-                    Share.share(links.getYoutubeLink(timestamp?.inSeconds));
+                    SharePlus.instance.share(ShareParams(
+                        uri: links.getYoutubeLink(timestamp?.inSeconds)));
                     if (context.mounted) {
                       Navigator.of(context).pop();
                     }
@@ -410,4 +413,33 @@ Orientation getOrientation() {
 Size getFractionOfAvailableSpace(BuildContext context, double fraction) {
   var size = MediaQuery.of(context).size;
   return Size(size.width * fraction, size.height * fraction);
+}
+
+Future<T?> showSafeModalBottomSheet<T>({
+  required BuildContext context,
+  required WidgetBuilder builder,
+  bool isScrollControlled = false,
+  bool enableDrag = true,
+  bool isDismissible = true,
+  Color? backgroundColor,
+  double? elevation,
+  ShapeBorder? shape,
+  bool? showDragHandle,
+  Clip? clipBehavior,
+  RouteSettings? routeSettings,
+}) {
+  return showModalBottomSheet<T>(
+    context: context,
+    builder: (context) => SafeArea(child: builder(context)),
+    useSafeArea: true, // ✅ Always enforced
+    isScrollControlled: isScrollControlled,
+    enableDrag: enableDrag,
+    isDismissible: isDismissible,
+    backgroundColor: backgroundColor,
+    showDragHandle: showDragHandle,
+    elevation: elevation,
+    shape: shape,
+    clipBehavior: clipBehavior,
+    routeSettings: routeSettings,
+  );
 }

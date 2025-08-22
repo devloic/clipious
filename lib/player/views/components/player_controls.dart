@@ -24,9 +24,10 @@ class PlayerControls extends StatelessWidget {
 
   const PlayerControls({super.key, this.mediaPlayerCubit});
 
-  showPlaybackSpeedSelection(BuildContext context, MediaPlayerCubit player) {
+  Future<void> showPlaybackSpeedSelection(
+      BuildContext context, MediaPlayerCubit player) async {
     Navigator.of(context).pop();
-    showModalBottomSheet(
+    showSafeModalBottomSheet(
       isScrollControlled: true,
       showDragHandle: true,
       context: context,
@@ -70,10 +71,11 @@ class PlayerControls extends StatelessWidget {
     );
   }
 
-  showPlayerTrackSelection(BuildContext context, PlayerControlsState _,
+  Future<void> showPlayerTrackSelection(
+      BuildContext context, PlayerControlsState _,
       {required List<String> tracks,
       required int selected,
-      required Function(int index) onSelected}) {
+      required Function(int index) onSelected}) async {
     List<ListTile> widgets = [];
 
     for (int i = 0; i < tracks.length; i++) {
@@ -87,7 +89,7 @@ class PlayerControls extends StatelessWidget {
           title: Text(tracks[i])));
     }
 
-    showModalBottomSheet(
+    showSafeModalBottomSheet(
       showDragHandle: true,
       isScrollControlled: true,
       context: context,
@@ -102,7 +104,7 @@ class PlayerControls extends StatelessWidget {
     );
   }
 
-  showOptionMenu(BuildContext context, PlayerControlsState controls) {
+  void showOptionMenu(BuildContext context, PlayerControlsState controls) {
     late MediaPlayerCubit pc;
     var player = context.read<PlayerCubit>();
     if (mediaPlayerCubit != null) {
@@ -117,7 +119,7 @@ class PlayerControls extends StatelessWidget {
     var audioTracks = pc.getAudioTracks();
     var subtitles = pc.getSubtitles();
 
-    showModalBottomSheet(
+    showSafeModalBottomSheet(
       isScrollControlled: true,
       showDragHandle: true,
       context: context,
@@ -228,7 +230,7 @@ class PlayerControls extends StatelessWidget {
               inactiveTrackColor: darkColorScheme.secondaryContainer),
           progressIndicatorTheme: ProgressIndicatorThemeData(
               circularTrackColor:
-                  darkColorScheme.secondaryContainer.withOpacity(0.8))),
+                  darkColorScheme.secondaryContainer.withValues(alpha: 0.8))),
       child: BlocProvider(
         create: (context) =>
             PlayerControlsCubit(const PlayerControlsState(), player),
@@ -309,7 +311,7 @@ class PlayerControls extends StatelessWidget {
                             child: Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.5),
+                                  color: Colors.black.withValues(alpha: 0.5),
                                   borderRadius: BorderRadius.circular(20)),
                               child: Row(
                                 children: [
@@ -427,7 +429,7 @@ class PlayerControls extends StatelessWidget {
                             )),
                       if (playerState.errored)
                         Container(
-                          color: Colors.black.withOpacity(0.8),
+                          color: Colors.black.withValues(alpha: 0.8),
                           child: const Center(
                             child: Icon(Icons.error),
                           ),
@@ -446,7 +448,8 @@ class PlayerControls extends StatelessWidget {
                                       decoration: BoxDecoration(
                                           borderRadius:
                                               BorderRadius.circular(0),
-                                          color: Colors.black.withOpacity(0.4)),
+                                          color: Colors.black
+                                              .withValues(alpha: 0.4)),
                                       child: Column(
                                         children: [
                                           Row(
@@ -468,8 +471,9 @@ class PlayerControls extends StatelessWidget {
                                                     style: textTheme.bodyMedium
                                                         ?.copyWith(
                                                             color: Colors.white
-                                                                .withOpacity(
-                                                                    0.8)),
+                                                                .withValues(
+                                                                    alpha:
+                                                                        0.8)),
                                                   ),
                                                 )),
                                               // Show PiP button only on Android where it's supported
@@ -555,8 +559,8 @@ class PlayerControls extends StatelessWidget {
                                             begin: Alignment.bottomCenter,
                                             end: Alignment.topCenter,
                                             colors: [
-                                            Colors.black.withOpacity(1),
-                                            Colors.black.withOpacity(0)
+                                            Colors.black.withValues(alpha: 1),
+                                            Colors.black.withValues(alpha: 0)
                                           ]))
                                     : null,
                                 child: Padding(
@@ -775,7 +779,7 @@ class DoubleTapButton extends StatelessWidget {
       curve: Curves.easeInOutQuad,
       margin: EdgeInsets.all(opacity == 1 ? 50 : 0),
       decoration: BoxDecoration(
-          color: Colors.black.withOpacity(opacity == 1 ? 0.3 : 0),
+          color: Colors.black.withValues(alpha: opacity == 1 ? 0.3 : 0),
           shape: BoxShape.circle),
       duration: const Duration(milliseconds: 150),
       height: double.infinity,
@@ -793,7 +797,7 @@ class DoubleTapButton extends StatelessWidget {
             Text(
               stepText,
               style: textTheme.bodySmall
-                  ?.copyWith(color: Colors.white.withOpacity(0.8)),
+                  ?.copyWith(color: Colors.white.withValues(alpha: 0.8)),
             )
           ],
         ),

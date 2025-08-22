@@ -40,6 +40,8 @@ class VideoPlayerCubit extends MediaPlayerCubit<VideoPlayerState> {
 
   @override
   close() async {
+    // Add delay to prevent immediate recreation during UI transitions
+    await Future.delayed(const Duration(milliseconds: 150));
     disposeControllers();
     super.close();
   }
@@ -49,10 +51,35 @@ class VideoPlayerCubit extends MediaPlayerCubit<VideoPlayerState> {
     WakelockPlus.disable();
     log.fine("Disposing video controller");
     var state = this.state.copyWith();
-    videoController?.exitFullScreen();
-    videoController?.removeEventsListener(onVideoListener);
-    videoController?.dispose();
-    videoController = null;
+    
+    try {
+      // Exit fullscreen safely
+      videoController?.exitFullScreen();
+      
+      // Remove listeners before disposal
+      videoController?.removeEventsListener(onVideoListener);
+      
+      // Dispose with simple delay - no async complications
+      if (videoController != null) {
+        final controller = videoController!;
+        videoController = null; // Clear reference immediately
+        
+        // Schedule disposal for next frame without async
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          try {
+            // Simple synchronous disposal
+            controller.dispose();
+            log.fine("Video controller disposed successfully");
+          } catch (e) {
+            log.warning("Error disposing video controller: $e");
+          }
+        });
+      }
+    } catch (e) {
+      log.warning("Error during controller disposal: $e");
+      videoController = null; // Clear reference even if disposal failed
+    }
+    
     if (!isClosed) {
       emit(state);
     }

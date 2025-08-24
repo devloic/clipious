@@ -4,6 +4,7 @@ import 'package:clipious/downloads/models/downloaded_video.dart';
 import 'package:clipious/player/states/video_player.dart';
 import 'package:clipious/settings/states/settings.dart';
 import 'package:river_player/river_player.dart';
+import 'package:universal_platform/universal_platform.dart';
 
 import '../../../videos/models/video.dart';
 import '../../states/player.dart';
@@ -65,15 +66,29 @@ class _VideoPlayerState extends State<VideoPlayer> {
             listener: (context, state) => context
                 .read<VideoPlayerCubit>()
                 .handleCommand(state.mediaCommand!),
-            child: cubit.videoController == null
-                ? const SizedBox.shrink()
-                : BetterPlayer(
-                    controller: cubit.videoController!,
-                    key: _betterPlayerKey,
-                  ),
+            child: _buildVideoPlayerWidget(cubit),
           );
         },
       ),
+    );
+  }
+
+  Widget _buildVideoPlayerWidget(VideoPlayerCubit cubit) {
+    // Check if we should use Windows DASH controller
+    if (UniversalPlatform.isWindows && 
+        cubit.settings.state.useDash && 
+        cubit.windowsDashController != null) {
+      return WindowsDashVideoPlayer(controller: cubit.windowsDashController!);
+    }
+    
+    // Default to BetterPlayer
+    if (cubit.videoController == null) {
+      return const SizedBox.shrink();
+    }
+    
+    return BetterPlayer(
+      controller: cubit.videoController!,
+      key: _betterPlayerKey,
     );
   }
 }

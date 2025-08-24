@@ -1,5 +1,6 @@
 import 'package:clipious/videos/models/ided_video.dart';
 import 'package:easy_debounce/easy_throttle.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
@@ -9,6 +10,7 @@ import 'package:clipious/player/models/media_event.dart';
 import 'package:clipious/settings/states/settings.dart';
 import 'package:logging/logging.dart';
 import 'package:river_player/river_player.dart';
+import 'package:universal_platform/universal_platform.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../../globals.dart';
@@ -27,10 +29,35 @@ final _googleCdnRegex = RegExp(r'https://(.+)googlevideo.com/');
 
 class VideoPlayerCubit extends MediaPlayerCubit<VideoPlayerState> {
   BetterPlayerController? videoController;
+  WindowsDashVideoController? windowsDashController;
   final SettingsCubit settings;
 
   VideoPlayerCubit(super.initialState, super.player, this.settings) {
     onInit();
+  }
+  
+  // Helper method to determine if we should use Windows DASH controller
+  bool _shouldUseWindowsDashController() {
+    return UniversalPlatform.isWindows && isUsingDash();
+  }
+  
+  // Helper to get the active video controller
+  dynamic get _activeController => _shouldUseWindowsDashController() ? windowsDashController : videoController;
+  
+  // Helper to check if any controller is playing
+  bool _isControllerPlaying() {
+    if (_shouldUseWindowsDashController() && windowsDashController != null) {
+      return windowsDashController!.videoController?.value.isPlaying ?? false;
+    }
+    return videoController?.isPlaying() ?? false;
+  }
+  
+  // Helper to get current position from any controller
+  Duration _getControllerPosition() {
+    if (_shouldUseWindowsDashController() && windowsDashController != null) {
+      return windowsDashController!.videoController?.value.position ?? Duration.zero;
+    }
+    return videoController?.videoPlayerController?.value.position ?? Duration.zero;
   }
 
   void onInit() {
@@ -53,14 +80,15 @@ class VideoPlayerCubit extends MediaPlayerCubit<VideoPlayerState> {
     var state = this.state.copyWith();
     
     try {
-      // Exit fullscreen safely
-      videoController?.exitFullScreen();
-      
-      // Remove listeners before disposal
-      videoController?.removeEventsListener(onVideoListener);
-      
-      // Dispose with simple delay - no async complications
+      // Handle BetterPlayer disposal
       if (videoController != null) {
+        // Exit fullscreen safely
+        videoController?.exitFullScreen();
+        
+        // Remove listeners before disposal
+        videoController?.removeEventsListener(onVideoListener);
+        
+        // Dispose with simple delay - no async complications
         final controller = videoController!;
         videoController = null; // Clear reference immediately
         
@@ -75,9 +103,25 @@ class VideoPlayerCubit extends MediaPlayerCubit<VideoPlayerState> {
           }
         });
       }
+      
+      // Handle WindowsDashVideoController disposal
+      if (windowsDashController != null) {
+        final controller = windowsDashController!;
+        windowsDashController = null; // Clear reference immediately
+        
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          try {
+            controller.dispose();
+            log.fine("Windows DASH controller disposed successfully");
+          } catch (e) {
+            log.warning("Error disposing Windows DASH controller: $e");
+          }
+        });
+      }
     } catch (e) {
       log.warning("Error during controller disposal: $e");
       videoController = null; // Clear reference even if disposal failed
+      windowsDashController = null;
     }
     
     if (!isClosed) {
@@ -230,7 +274,14 @@ class VideoPlayerCubit extends MediaPlayerCubit<VideoPlayerState> {
 
   @override
   togglePlaying() {
-    if (videoController != null) {
+    if (_shouldUseWindowsDashController() && windowsDashController != null) {
+      if (windowsDashController!.videoController?.value.isPlaying ?? false) {
+        windowsDashController!.pause();
+      } else {
+        windowsDashController!.play();
+      }
+      emit(state.copyWith());
+    } else if (videoController != null) {
       (videoController?.isPlaying() ?? false)
           ? videoController?.pause()
           : videoController?.play();
@@ -357,54 +408,94 @@ class VideoPlayerCubit extends MediaPlayerCubit<VideoPlayerState> {
 
       bool fillVideo = settings.state.fillFullscreen;
 
-      if (videoController == null) {
-        videoController = BetterPlayerController(
-            BetterPlayerConfiguration(
-                overlay: isTv
-                    ? const TvPlayerControls()
-                    : PlayerControls(mediaPlayerCubit: this),
-                deviceOrientationsOnFullScreen: [
-                  DeviceOrientation.landscapeLeft,
-                  DeviceOrientation.landscapeRight,
-                  DeviceOrientation.portraitDown,
-                  DeviceOrientation.portraitUp
-                ],
-                deviceOrientationsAfterFullScreen: [
-                  DeviceOrientation.landscapeLeft,
-                  DeviceOrientation.landscapeRight,
-                  DeviceOrientation.portraitDown,
-                  DeviceOrientation.portraitUp
-                ],
-                handleLifecycle: false,
-                startAt: startAt,
-                autoPlay: true,
-                allowedScreenSleep: false,
-                fit: fillVideo ? BoxFit.cover : BoxFit.contain,
-                subtitlesConfiguration: BetterPlayerSubtitlesConfiguration(
-                    backgroundColor: settings.state.subtitlesBackground
-                        ? Colors.black.withValues(alpha: 0.8)
-                        : Colors.transparent,
-                    fontSize: settings.state.subtitleSize,
-                    outlineEnabled: true,
-                    outlineColor: Colors.black,
-                    outlineSize: 1),
-                controlsConfiguration: const BetterPlayerControlsConfiguration(
-                    showControls: false
-                    // customControlsBuilder: (controller, onPlayerVisibilityChanged) => PlayerControls(mediaPlayerCubit: this),
-                    // customControlsBuilder: (controller, onPlayerVisibilityChanged) => const PlayerControls(),
-                    // enablePlayPause: false,
-                    // overflowModalColor: colors.surface,
-                    // overflowModalTextColor: overFlowTextColor,
-                    // overflowMenuIconsColor: overFlowTextColor,
-                    // overflowMenuCustomItems: [BetterPlayerOverflowMenuItem(useDash ? Icons.check_box_outlined : Icons.check_box_outline_blank, locals.useDash, toggleDash)])
-                    )),
-            betterPlayerDataSource: betterPlayerDataSource);
-        videoController!.addEventsListener(onVideoListener);
-        videoController!.setBetterPlayerGlobalKey(newState.key);
-        // isPipSupported = await videoController?.isPictureInPictureSupported() ?? false;
+      // Use Windows DASH controller if on Windows and using DASH
+      if (_shouldUseWindowsDashController() && !offline) {
+        // Only use Windows DASH for online DASH streaming
+        String dashUrl = newState.video!.dashUrl!;
+        var useProxy = service.useProxy();
+        String finalDashUrl = '${dashUrl}${useProxy ? '?local=true' : ''}';
+        
+        if (windowsDashController == null) {
+          log.info('Creating Windows DASH controller for DASH streaming');
+          windowsDashController = WindowsDashVideoController();
+          
+          // Setup DASH streaming with the video URL
+          await windowsDashController!.setupDashStream(
+            finalDashUrl,
+            targetResolution: 720, // Default resolution, could be made configurable
+            includeAudio: true,
+          );
+          
+          // Seek to start position if specified
+          if (startAt != null) {
+            await windowsDashController!.seekTo(startAt);
+          }
+          
+          // Auto-play
+          windowsDashController!.play();
+        } else {
+          // Controller exists, just setup new stream
+          await windowsDashController!.setupDashStream(
+            finalDashUrl,
+            targetResolution: 720,
+            includeAudio: true,
+          );
+          
+          if (startAt != null) {
+            await windowsDashController!.seekTo(startAt);
+          }
+        }
       } else {
-        await videoController?.setupDataSource(betterPlayerDataSource);
-        seek(startAt ?? Duration.zero);
+        // Use BetterPlayer for non-Windows or non-DASH scenarios
+        if (videoController == null) {
+          videoController = BetterPlayerController(
+              BetterPlayerConfiguration(
+                  overlay: isTv
+                      ? const TvPlayerControls()
+                      : PlayerControls(mediaPlayerCubit: this),
+                  deviceOrientationsOnFullScreen: [
+                    DeviceOrientation.landscapeLeft,
+                    DeviceOrientation.landscapeRight,
+                    DeviceOrientation.portraitDown,
+                    DeviceOrientation.portraitUp
+                  ],
+                  deviceOrientationsAfterFullScreen: [
+                    DeviceOrientation.landscapeLeft,
+                    DeviceOrientation.landscapeRight,
+                    DeviceOrientation.portraitDown,
+                    DeviceOrientation.portraitUp
+                  ],
+                  handleLifecycle: false,
+                  startAt: startAt,
+                  autoPlay: true,
+                  allowedScreenSleep: false,
+                  fit: fillVideo ? BoxFit.cover : BoxFit.contain,
+                  subtitlesConfiguration: BetterPlayerSubtitlesConfiguration(
+                      backgroundColor: settings.state.subtitlesBackground
+                          ? Colors.black.withValues(alpha: 0.8)
+                          : Colors.transparent,
+                      fontSize: settings.state.subtitleSize,
+                      outlineEnabled: true,
+                      outlineColor: Colors.black,
+                      outlineSize: 1),
+                  controlsConfiguration: const BetterPlayerControlsConfiguration(
+                      showControls: false
+                      // customControlsBuilder: (controller, onPlayerVisibilityChanged) => PlayerControls(mediaPlayerCubit: this),
+                      // customControlsBuilder: (controller, onPlayerVisibilityChanged) => const PlayerControls(),
+                      // enablePlayPause: false,
+                      // overflowModalColor: colors.surface,
+                      // overflowModalTextColor: overFlowTextColor,
+                      // overflowMenuIconsColor: overFlowTextColor,
+                      // overflowMenuCustomItems: [BetterPlayerOverflowMenuItem(useDash ? Icons.check_box_outlined : Icons.check_box_outline_blank, locals.useDash, toggleDash)])
+                      )),
+              betterPlayerDataSource: betterPlayerDataSource);
+          videoController!.addEventsListener(onVideoListener);
+          videoController!.setBetterPlayerGlobalKey(newState.key);
+          // isPipSupported = await videoController?.isPictureInPictureSupported() ?? false;
+        } else {
+          await videoController?.setupDataSource(betterPlayerDataSource);
+          seek(startAt ?? Duration.zero);
+        }
       }
 
       emit(newState);
@@ -423,22 +514,34 @@ class VideoPlayerCubit extends MediaPlayerCubit<VideoPlayerState> {
 
   @override
   bool isPlaying() {
-    return videoController?.isPlaying() ?? false;
+    return _isControllerPlaying();
   }
 
   @override
   void pause() {
-    videoController?.pause();
+    if (_shouldUseWindowsDashController() && windowsDashController != null) {
+      windowsDashController!.pause();
+    } else {
+      videoController?.pause();
+    }
   }
 
   @override
   void play() {
-    videoController?.play();
+    if (_shouldUseWindowsDashController() && windowsDashController != null) {
+      windowsDashController!.play();
+    } else {
+      videoController?.play();
+    }
   }
 
   @override
   void seek(Duration position) {
-    videoController?.seekTo(position);
+    if (_shouldUseWindowsDashController() && windowsDashController != null) {
+      windowsDashController!.seekTo(position);
+    } else {
+      videoController?.seekTo(position);
+    }
   }
 
   @override
@@ -448,12 +551,14 @@ class VideoPlayerCubit extends MediaPlayerCubit<VideoPlayerState> {
 
   @override
   Duration position() {
-    return videoController?.videoPlayerController?.value.position ??
-        Duration.zero;
+    return _getControllerPosition();
   }
 
   @override
   double? speed() {
+    if (_shouldUseWindowsDashController() && windowsDashController != null) {
+      return 1.0; // Default speed for Windows DASH controller
+    }
     return videoController?.videoPlayerController?.value.speed ?? 1;
   }
 
@@ -590,21 +695,37 @@ class VideoPlayerCubit extends MediaPlayerCubit<VideoPlayerState> {
 
   @override
   bool isMuted() {
+    if (_shouldUseWindowsDashController() && windowsDashController != null) {
+      return windowsDashController!.videoController?.value.volume == 0;
+    }
     return videoController?.videoPlayerController?.value.volume == 0;
   }
 
   @override
   void toggleVolume(bool soundOn) {
-    videoController?.setVolume(soundOn ? 1 : 0);
+    if (_shouldUseWindowsDashController() && windowsDashController != null) {
+      windowsDashController!.videoController?.setVolume(soundOn ? 1 : 0);
+    } else {
+      videoController?.setVolume(soundOn ? 1 : 0);
+    }
   }
 
   @override
   void setSpeed(double d) {
-    videoController?.setSpeed(d);
+    if (_shouldUseWindowsDashController() && windowsDashController != null) {
+      // Note: WindowsDashVideoController may not support speed control
+      // This would need to be implemented in the controller itself
+      log.warning('Speed control not yet supported for Windows DASH controller');
+    } else {
+      videoController?.setSpeed(d);
+    }
   }
 
   @override
   double getSpeed() {
+    if (_shouldUseWindowsDashController() && windowsDashController != null) {
+      return 1.0; // Default speed for Windows DASH controller
+    }
     return videoController?.videoPlayerController?.value.speed ?? 1;
   }
 
@@ -620,12 +741,23 @@ class VideoPlayerCubit extends MediaPlayerCubit<VideoPlayerState> {
 
   @override
   Duration duration() {
+    if (_shouldUseWindowsDashController() && windowsDashController != null) {
+      return windowsDashController!.videoController?.value.duration ??
+          const Duration(milliseconds: 1);
+    }
     return videoController?.videoPlayerController?.value.duration ??
         const Duration(milliseconds: 1);
   }
 
   @override
   double getAspectRatio() {
+    if (_shouldUseWindowsDashController() && windowsDashController != null) {
+      double width =
+          windowsDashController!.videoController?.value.size?.width ?? 16;
+      double height =
+          windowsDashController!.videoController?.value.size?.height ?? 9;
+      return width / height;
+    }
     double width =
         videoController?.videoPlayerController?.value.size?.width ?? 16;
     double height =

@@ -12,6 +12,7 @@
 #include <downloadsfolder/downloadsfolder_plugin_c_api.h>
 #include <dynamic_color/dynamic_color_plugin_c_api.h>
 #include <flutter_volume_controller/flutter_volume_controller_plugin_c_api.h>
+#include <fvp/fvp_plugin_c_api.h>
 #include <media_kit_libs_windows_video/media_kit_libs_windows_video_plugin_c_api.h>
 #include <media_kit_video/media_kit_video_plugin_c_api.h>
 #include <river_player/river_player_plugin_c_api.h>
@@ -34,6 +35,8 @@ void RegisterPlugins(flutter::PluginRegistry* registry) {
       registry->GetRegistrarForPlugin("DynamicColorPluginCApi"));
   FlutterVolumeControllerPluginCApiRegisterWithRegistrar(
       registry->GetRegistrarForPlugin("FlutterVolumeControllerPluginCApi"));
+  FvpPluginCApiRegisterWithRegistrar(
+      registry->GetRegistrarForPlugin("FvpPluginCApi"));
   MediaKitLibsWindowsVideoPluginCApiRegisterWithRegistrar(
       registry->GetRegistrarForPlugin("MediaKitLibsWindowsVideoPluginCApi"));
   MediaKitVideoPluginCApiRegisterWithRegistrar(
